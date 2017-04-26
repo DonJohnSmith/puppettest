@@ -1,0 +1,72 @@
+<%- |
+# read: https://www.freedesktop.org/software/systemd/man/systemd.service.html
+
+    String $appname,
+    String $appdir,
+    String $appuser,
+    String $appgroup,
+
+    String $service_name = $appname,
+    String $extra_app_path='',
+    String $application_properties = 'application.properties',
+    String $log4j2_xml = 'log4j2.xml',
+    Variant[String, Boolean] $truststore = false,
+    String $restart='no',
+    Array  $requires=[],
+
+    Boolean $jmx_enabled=false,
+    Integer $jmx_port=9010,
+
+    # for backward compat. not used in this template
+    Variant[String,Boolean] $start_script_name = false,
+    Variant[String,Boolean] $stop_script_name = false,
+    | -%>
+[Unit]
+Description=Service definition for "<%= $appname %>"
+After=network.target
+<% if $requires != [] { -%>
+  Requires=<% $requires.each |$required_service| { -%>
+    <%= "${required_service}.service " -%>
+<%   } %> <%# #end each %>
+  After=<% $requires.each |$required_service| { -%>
+    <%= "${required_service}.service " -%>
+<%   } %> <%# #end each -%>
+<% } %>   <%# end if %>
+
+[Service]
+Type= simple
+WorkingDirectory=<%= $appdir %>/
+
+Environment=APP_JAR="<%= $appdir %>/<%= $service_name %>/<%= $appname %>.jar"
+
+<%- if $truststore { -%>
+Environment=TRUSTSTORE_FLAG="-Djavax.net.ssl.trustStore=/opt/cleveron/java_truststore/<%= $truststore %>"
+<%- } -%>
+
+User=<%= $appuser %>
+Group=<%= $appgroup %>
+ExecStart=/usr/bin/java $TRUSTSTORE_FLAG \
+<%- if $jmx_enabled { -%>
+      -Dcom.sun.management.jmxremote.port=<%= $jmx_port %> \
+      -Dcom.sun.management.jmxremote.ssl=false \
+      -Dcom.sun.management.jmxremote.authenticate=false \
+      -Dcom.sun.management.jmxremote \
+<%- } -%>
+      -Dlog4j.configurationFile=<%= $appdir %>/conf/<%= $log4j2_xml %> \
+      -jar $APP_JAR \
+      --logging.config=file:<%= $appdir %>/conf/<%= $log4j2_xml %> \
+      --spring.config.location=file:<%= $appdir %>/conf/<%= $application_properties %>
+
+Restart=<%= $restart %>
+RestartSec=5s
+
+StartLimitInterval=30
+StartLimitBurst=3
+
+StandardOutput=syslog
+StandardError=syslog
+SyslogFacility=local1
+SyslogIdentifier=<%= $service_name %>
+
+[Install]
+WantedBy=multi-user.target
