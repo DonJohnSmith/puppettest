@@ -41,9 +41,9 @@ class emulator
     source  => 'puppet:///modules/emulator/scripts',
     mode    => '0755'
   }
-  
+
   file { '/tmp/cleverland2-db.tar.gz' :
-  	source => "puppet:///modules/emulator/cleverland2-db.tar.gz"
+  source => "puppet:///modules/emulator/cleverland2-db.tar.gz"
   }
 
 
@@ -71,6 +71,6 @@ class emulator
     datasync_password   => 'datasync1',
     datasync_limit      => '3',
     datasync_accesslist => ['127.0.0.1/32'],
- }
+  }
 
 }
